@@ -3,3 +3,5 @@ uvicorn
 requests
 python-dotenv
 supabase
+fastapi==0.111.1
+uvicorn==0.25.0
