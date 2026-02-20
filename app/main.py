@@ -3,6 +3,14 @@ from app.db import supabase_db
 
 app = FastAPI(title="Traxspro Signal API")
 
+@app.get("/")
+async def root():
+    return {
+        "platform": "Traxspro Intelligence API",
+        "status": "online",
+        "docs": "/docs"
+    }
+
 @app.get("/api/trending/global")
 async def get_global_trending(limit: int = 10):
     """Serve global trends directly from Supabase cache."""
