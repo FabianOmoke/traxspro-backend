@@ -1,8 +1,5 @@
-fastapi
-uvicorn
+fastapi==0.111.1
+uvicorn[standard]==0.25.0
 requests
 python-dotenv
 supabase
-fastapi==0.111.1
-uvicorn==0.25.0
-uvicorn[standard]
