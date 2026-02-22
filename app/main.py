@@ -71,3 +71,26 @@ def get_market_intelligence(dma_name: str, limit: int = 10):
         "market": dma_name.upper(),
         "data": market_data
     }
+
+@app.get("/api/visualize/map")
+def get_map_visualization():
+    """Returns the 'Music Heat' for every country currently in our system."""
+    # We pull the total listeners per country for the last 24 hours
+    stats = (
+        supabase_db.table("dma_top_artists")
+        .select("country, listeners")
+        .eq("captured_at", date.today().isoformat())
+        .execute()
+    )
+
+    # Aggregate the data so each country has one total 'heat' score
+    heat_map = {}
+    for entry in stats.data:
+        c = entry["country"]
+        heat_map[c] = heat_map.get(c, 0) + entry["listeners"]
+
+    # Format it as a simple list for Lovable's Map components
+    return [
+        {"id": country.upper(), "value": value} 
+        for country, value in heat_map.items()
+    ]
