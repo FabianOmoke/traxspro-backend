@@ -7,11 +7,19 @@ from services.lastfm import (
     fetch_geo_top_artists
 )
 from datetime import date
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Traxspro Signal API")
 
 # ... (root and global endpoints remain same)
-
+# Add this block right after initializing 'app'
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # For development. Change to your Lovable domain for security later.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # --- 1. Core Logic Helper ---
 def get_or_fetch_country_signal(country: str, limit: int = 10):
     cached = get_cached_dma_artists(country.lower())
