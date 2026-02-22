@@ -1,59 +1,56 @@
-from supabase import create_client, Client
-from app.config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+import uuid
 from datetime import date
+from app.db import supabase_db
 
-"""Create and expose a Supabase client using credentials from `app.config`.
 
-This lets credentials be provided either via environment variables or
-directly placed in `app/config.py` for local development.
-"""
+def get_or_create_artist(artist_data):
 
-def get_supabase() -> Client:
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        raise ValueError("Supabase credentials not found in environment or config.")
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    # Try to find by MBID first
+    if artist_data["mbid"]:
+        existing = (
+            supabase_db.table("artists")
+            .select("*")
+            .eq("mbid", artist_data["mbid"])
+            .execute()
+        )
 
-# This is your active database connection
-supabase_db = get_supabase()
+        if existing.data:
+            return existing.data[0]["id"]
 
-# ---------------------------------------------------------
-# DMA Intelligence Cache Functions
-# ---------------------------------------------------------
+    # Otherwise create new artist
+    new_artist = {
+        "id": str(uuid.uuid4()),
+        "name": artist_data["name"],
+        "mbid": artist_data["mbid"],
+        "global_listeners": artist_data["listeners"],
+        "last_updated_at": date.today()
+    }
 
-from datetime import date
+    supabase_db.table("artists").insert(new_artist).execute()
 
-def get_cached_dma_artists(country: str):
-    today = date.today().isoformat()
-    response = (
-        supabase_db.table("dma_top_artists")
-        .select("rank, country, artists(name, mbid, global_listeners)")
-        .eq("country", country.lower())
-        .eq("captured_at", today)
-        .order("rank").execute()
-    )
-    
-    if not response.data: return None
-        
-    return [{
-        "rank": r["rank"],
-        "artist_name": r["artists"]["name"],
-        "mbid": r["artists"]["mbid"],
-        "listeners": r["artists"]["global_listeners"]
-    } for r in response.data]
+    return new_artist["id"]
 
-def save_dma_artists(artists_data: list):
-    # 1. Update Artist Table & Get IDs
-    core_artists = [{"name": a["artist_name"], "mbid": a["mbid"], "global_listeners": a["listeners"]} 
-                    for a in artists_data]
-    
-    artist_records = supabase_db.table("artists").upsert(core_artists, on_conflict="name").execute()
-    name_to_id = {a["name"]: a["id"] for a in artist_records.data}
 
-    # 2. Map IDs to DMA records
-    dma_records = [{
-        "country": a["country"],
-        "artist_id": name_to_id[a["artist_name"]],
-        "rank": a["rank"]
-    } for a in artists_data]
+def save_dma_artists(country: str, artists_list: list):
 
-    return supabase_db.table("dma_top_artists").upsert(dma_records).execute()
+    today = date.today()
+
+    for artist in artists_list:
+
+        artist_id = get_or_create_artist(artist)
+
+        trending_row = {
+            "id": str(uuid.uuid4()),
+            "artist_id": artist_id,
+            "name": artist["name"],  # transitional
+            "listeners": artist["listeners"],
+            "playcount": artist["playcount"],
+            "rank_position": artist["rank_position"],
+            "geo_signal": country,
+            "captured_at": today,
+            "mbid": artist["mbid"],
+            "image_url": artist["image_url"],
+            "lastfm_url": artist["lastfm_url"]
+        }
+
+        supabase_db.table("trending_artists").insert(trending_row).execute()

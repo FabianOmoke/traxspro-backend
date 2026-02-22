@@ -62,7 +62,21 @@ def genre_top(tag: str, limit: int = 10):
 async def get_global_trending(limit: int = 10):
     response = (
         supabase_db.table("trending_artists")
-        .select("*")
+        .select("""
+            id,
+            rank_position,
+            listeners,
+            playcount,
+            geo_signal,
+            captured_at,
+            artists (
+                id,
+                name,
+                mbid,
+                global_listeners,
+                last_updated_at
+            )
+        """)
         .eq("geo_signal", "global")
         .order("captured_at", desc=True)
         .order("rank_position", desc=False)
@@ -77,7 +91,21 @@ async def get_global_trending(limit: int = 10):
 async def get_country_trending(country: str, limit: int = 10):
     response = (
         supabase_db.table("trending_artists")
-        .select("*")
+        .select("""
+            id,
+            rank_position,
+            listeners,
+            playcount,
+            geo_signal,
+            captured_at,
+            artists (
+                id,
+                name,
+                mbid,
+                global_listeners,
+                last_updated_at
+            )
+        """)
         .eq("geo_signal", country)
         .order("captured_at", desc=True)
         .order("rank_position", desc=False)
