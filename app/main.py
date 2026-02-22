@@ -122,36 +122,38 @@ async def get_country_trending(country: str, limit: int = 10):
 
 from datetime import date
 
-
-def get_or_fetch_country_signal(country: str, limit: int = 10):
+def get_or_fetch_country_signal(country: str, limit: int = 50):
     """
-    Returns cached data if today's snapshot exists,
+    Returns cached data if today's snapshot exists, 
     otherwise fetches from Last.fm and saves.
     """
-
-    today = date.today()
-
-    cached = get_cached_dma_artists(country, today)
+    # 1. Check the optimized cache (only pass country)
+    cached = get_cached_dma_artists(country)
 
     if cached:
-        return {"source": "cache", "data": cached}
+        # We slice the cache results to match the requested limit
+        return {"source": "cache", "data": cached[:limit]}
 
+    # 2. Fetch fresh data if cache is empty
     fresh_data = fetch_geo_top_artists(country, limit)
 
-    save_dma_artists(country, fresh_data, today)
+    if not fresh_data:
+        raise HTTPException(status_code=404, detail=f"No data found for {country}")
+
+    # 3. Save using the new batch logic (pass country, data, and today's date)
+    save_dma_artists(country, fresh_data, date.today())
 
     return {"source": "live", "data": fresh_data}
 
 
 @app.get("/api/intelligence/geo/{country}")
 def get_geo_intelligence(country: str, limit: int = 10):
-
+    # Ensure country names are always lowercase for DB consistency
     return get_or_fetch_country_signal(country.lower(), limit)
 
 
 @app.get("/api/intelligence/market/{dma_name}")
 def get_market_intelligence(dma_name: str, limit: int = 10):
-
     dma_key = dma_name.lower()
 
     if dma_key not in DMA_MAP:
@@ -166,6 +168,6 @@ def get_market_intelligence(dma_name: str, limit: int = 10):
 
     return {
         "market": dma_name.upper(),
-        "countries": countries,
+        "countries_included": countries,
         "data": market_data
     }
