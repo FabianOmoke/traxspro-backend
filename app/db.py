@@ -31,9 +31,11 @@ def get_or_create_artist(artist_data):
     return new_artist["id"]
 
 
-def save_dma_artists(country: str, artists_list: list):
+from datetime import date
+import uuid
 
-    today = date.today()
+
+def save_dma_artists(country: str, artists_list: list, snapshot_date: date):
 
     for artist in artists_list:
 
@@ -42,15 +44,17 @@ def save_dma_artists(country: str, artists_list: list):
         trending_row = {
             "id": str(uuid.uuid4()),
             "artist_id": artist_id,
-            "name": artist["name"],  # transitional
             "listeners": artist["listeners"],
             "playcount": artist["playcount"],
             "rank_position": artist["rank_position"],
             "geo_signal": country,
-            "captured_at": today,
-            "mbid": artist["mbid"],
-            "image_url": artist["image_url"],
-            "lastfm_url": artist["lastfm_url"]
+            "captured_at": snapshot_date
         }
 
-        supabase_db.table("trending_artists").insert(trending_row).execute()
+        # UPSERT prevents duplicates
+        supabase_db.table("trending_artists") \
+            .upsert(
+                trending_row,
+                on_conflict="artist_id,geo_signal,captured_at"
+            ) \
+            .execute()

@@ -120,18 +120,33 @@ async def get_country_trending(country: str, limit: int = 10):
 # DMA INTELLIGENCE
 # -----------------------
 
-@app.get("/api/intelligence/geo/{country}")
-def get_geo_intelligence(country: str, limit: int = 10):
+from datetime import date
 
-    cached = get_cached_dma_artists(country)
+
+def get_or_fetch_country_signal(country: str, limit: int = 10):
+    """
+    Returns cached data if today's snapshot exists,
+    otherwise fetches from Last.fm and saves.
+    """
+
+    today = date.today()
+
+    cached = get_cached_dma_artists(country, today)
 
     if cached:
         return {"source": "cache", "data": cached}
 
     fresh_data = fetch_geo_top_artists(country, limit)
-    save_dma_artists(country, fresh_data)
+
+    save_dma_artists(country, fresh_data, today)
 
     return {"source": "live", "data": fresh_data}
+
+
+@app.get("/api/intelligence/geo/{country}")
+def get_geo_intelligence(country: str, limit: int = 10):
+
+    return get_or_fetch_country_signal(country.lower(), limit)
 
 
 @app.get("/api/intelligence/market/{dma_name}")
@@ -146,15 +161,8 @@ def get_market_intelligence(dma_name: str, limit: int = 10):
     market_data = {}
 
     for country in countries:
-
-        cached = get_cached_dma_artists(country)
-
-        if cached:
-            market_data[country] = cached
-        else:
-            fresh = fetch_geo_top_artists(country, limit)
-            save_dma_artists(country, fresh)
-            market_data[country] = fresh
+        result = get_or_fetch_country_signal(country, limit)
+        market_data[country] = result["data"]
 
     return {
         "market": dma_name.upper(),
