@@ -4,14 +4,11 @@ FROM python:3.11-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy just the requirements file first to cache the installations
-COPY requirements.txt .
-
-# Install dependencies globally inside the container (no venv needed!)
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of your project files into the container
+# Copy all your project files into the container
 COPY . .
 
+# BRUTE FORCE INSTALL: Ignore requirements.txt and force install everything directly
+RUN pip install --no-cache-dir fastapi uvicorn httpx supabase python-dotenv
+
 # Start the server using Railway's dynamic PORT variable
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
