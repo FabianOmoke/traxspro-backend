@@ -14,30 +14,37 @@ app = FastAPI(title="Traxspro Signal API")
 
 # --- 1. Core Logic Helper ---
 def get_or_fetch_country_signal(country: str, limit: int = 10):
-    # Only pass country name to the cache checker
     cached = get_cached_dma_artists(country.lower())
 
     if cached:
         return {"source": "cache", "data": cached[:limit]}
 
-    # Fetch live if no cache
     fresh_data = fetch_geo_top_artists(country, limit)
     
     if not fresh_data:
         raise HTTPException(status_code=404, detail=f"No data for {country}")
 
-    # FIX: Ensure we use 'artist_name' to match what fetch_geo_top_artists returns
-    # Based on your previous services/lastfm.py code, it returns 'artist_name'
-    save_data = [{
-        "name": a["artist_name"], # This was the KeyError
-        "mbid": a["mbid"],
-        "listeners": a["listeners"],
-        "rank": a["rank"]
-    } for a in fresh_data]
+    # SAFE MAPPING: We check for 'artist_name' OR 'name'
+    save_data = []
+    for a in fresh_data:
+        # Use .get() to avoid KeyErrors if the source naming changes
+        name = a.get("artist_name") or a.get("name")
+        
+        if name:
+            save_data.append({
+                "name": name,
+                "mbid": a.get("mbid"),
+                "listeners": a.get("listeners", 0),
+                "rank": a.get("rank", 0)
+            })
     
-    save_dma_artists(country.lower(), save_data, date.today())
+    # Only save if we actually processed artists
+    if save_data:
+        save_dma_artists(country.lower(), save_data, date.today())
 
     return {"source": "live", "data": fresh_data}
+
+
 # --- 2. Routes ---
 @app.get("/api/intelligence/geo/{country}")
 def get_geo_intelligence(country: str, limit: int = 10):
