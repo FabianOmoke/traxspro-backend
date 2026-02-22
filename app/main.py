@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from app.db import supabase_db
+from app.db import save_dma_artists, get_cached_dma_artists
+from services.lastfm import fetch_geo_top_artists
 
 app = FastAPI(title="Traxspro Signal API")
 
